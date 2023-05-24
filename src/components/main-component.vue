@@ -2,12 +2,22 @@
   <div>
     <div class="board">
       <cell
-        v-for="cell of board.flatMap((row) => row)"
+        class="cell"
+        :class="{
+          top: Math.floor(i / 9) % 3 === 0,
+          bottom: Math.floor(i / 9) % 3 === 2,
+          left: i % 3 === 0,
+          right: i % 3 === 2,
+        }"
+        v-for="(cell, i) of board.flatMap((row) => row)"
         :cell="cell"
         @update:num="
           (newNum) => {
-            cell.num = newNum
-            updateBy(cell)
+            if (newNum !== null) {
+              cell.num = newNum
+              cell.updateBy()
+            }
+            focusNext(i)
           }
         "
       />
@@ -16,98 +26,39 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { onMounted } from 'vue'
 import Cell from './cell.vue'
-const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const
-type Num = (typeof nums)[number]
-const is = [0, 1, 2, 3, 4, 5, 6, 7, 8] as const
-type I = (typeof is)[number]
+import { createBoard } from '../utils/sudoku'
 
-type Chunk = {
-  [i in I]: Cell
-} & Array<Cell>
-
-export type Cell = {
-  row: Chunk
-  column: Chunk
-  area: Chunk
-  num?: Num
-} & {
-  [num in Num]: boolean
-}
-
-type Board = {
-  [r in I]: {
-    [c in I]: Cell
-  }
-} & Array<Array<Cell>>
-
-const board: Board = reactive(
-  nums.map((r) =>
-    nums.map((c) => Object.fromEntries([...nums.map((n) => [n, true])]))
-  ) as Board
-)
-
-board.forEach((_, r) => {
-  const ars = Math.floor(r / 3) * 3
-  board[r].forEach((_, c) => {
-    const acs = Math.floor(c / 3) * 3
-    board[r][c].row = is.map((i) => board[r][i]) as Chunk
-    board[r][c].column = is.map((i) => board[i][c]) as Chunk
-    board[r][c].area = is.map(
-      (i) => board[ars + Math.floor(i / 3)][acs + (i % 3)]
-    ) as Chunk
-  })
+onMounted(() => {
+  ;(document.querySelector('.cell') as HTMLElement)?.focus()
 })
 
-const str =
-  '2                                                    5 5  8    7 43 59  96  71  2'
-for (let r = 0; r < 9; r++) {
-  for (let c = 0; c < 9; c++) {
-    const s = str[r + c * 9]
-    if (s !== ' ') {
-      board[r][c].num = Number(s) as Num
-    }
-  }
+const focusNext = (thisI: number) => {
+  const cellDOMs = document.querySelectorAll('.cell')
+  ;(cellDOMs[(thisI + 1) % cellDOMs.length] as HTMLElement).focus()
 }
+const board = createBoard()
 
-function updateBy(cell: Cell) {
-  const num = cell.num
-  if (num) {
-    const relatedCells = new Set([...cell.row, ...cell.column, ...cell.area])
-    relatedCells.forEach((c) => {
-      c[num] = false
-    })
-    relatedCells.forEach((c) => {
-      if (c.num) {
-        return
-      }
-      const trueNums = nums.filter((num) => c[num])
-      if (trueNums.length === 1) {
-        c.num = trueNums[0]
-        updateBy(c)
-      }
-    })
-  }
-}
-
-;(async () => {
-  for (let r = 0; r < 9; r++) {
-    for (let c = 0; c < 9; c++) {
-      if (board[r][c].num) {
-        updateBy(board[r][c])
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        console.log('A')
-      }
-    }
-  }
-  console.log(board)
-})()
+board.resolve()
 </script>
 
 <style scoped>
 .board {
   display: grid;
   grid-template: repeat(9, auto) / repeat(9, auto);
+  border: 2px solid gray;
+  > .right {
+    border-right: 2px solid gray;
+  }
+  > .left {
+    border-left: 2px solid gray;
+  }
+  > .top {
+    border-top: 2px solid gray;
+  }
+  > .bottom {
+    border-bottom: 2px solid gray;
+  }
 }
 </style>

@@ -1,38 +1,48 @@
 <template>
-  <div class="cell">
-    <div class="num" v-if="cell.num">{{ cell.num }}</div>
-    <template v-else>
-      <input @input="updateNum" type="text" class="input" />
-      <div class="nums">
-        <div
-          class="snum"
-          v-for="num of Array(9)
-            .fill(0)
-            .map((_, i) => i + 1)"
-        >
-          {{ cell[num] ? num : '&nbsp;' }}
-        </div>
+  <div class="cell" :tabindex="0" @keydown="onKeydown">
+    <div class="num" v-if="value">{{ value }}</div>
+    <div class="nums" v-else>
+      <div class="snum" v-for="num of '789456123'.split('').map(Number)">
+        {{ cell[num as Num] ? num : '&nbsp;' }}
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Cell } from './main-component.vue'
+import { ref, Ref, watch } from 'vue'
+import { Cell, Num, nums } from '../utils/sudoku'
+
+const props = defineProps<{ cell: Cell }>()
 
 const $emit = defineEmits<{
-  (e: 'update:num', value: number): void
+  (e: 'update:num', value: Num | null): void
 }>()
 
-function updateNum(e: { target: { value: string } }) {
-  const value = e.target.value
-  if (!value.match(/\d/)) {
+const value: Ref<string> = ref(String(props.cell.num ?? ''))
+const error = ref(false)
+
+watch(
+  () => props.cell.num,
+  () => (value.value = String(props.cell.num))
+)
+
+function onKeydown(e: KeyboardEvent) {
+  const char = e.key
+  if (char === 'Enter') {
+    $emit('update:num', null)
+    return
+  } else if (char.length !== 1) {
     return
   }
-  $emit('update:num', Number(value))
+  value.value = char
+  const num = Number(value.value)
+  if (!((num): num is Num => nums.includes(num as Num))(num)) {
+    error.value = true
+    return
+  }
+  $emit('update:num', num)
 }
-
-defineProps<{ cell: Cell }>()
 </script>
 
 <style scoped>
